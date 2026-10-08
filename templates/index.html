@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedChain - Blockchain Medical Records</title>
+    <style>
+        /* ===== CSS RESET & VARIABLES ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary: #0066cc;
+            --primary-dark: #004a99;
+            --primary-light: #e6f0ff;
+            --accent: #00b894;
+            --accent-dark: #00956f;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --text: #2d3748;
+            --text-light: #718096;
+            --border: #e2e8f0;
+            --sidebar-bg: #1a365d;
+            --sidebar-text: #e2e8f0;
+            --sidebar-active: #2b6cb0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.25s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all var(--transition);
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover { background: rgba(255,255,255,0.1); }
+        .nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
+        .nav-item .icon { font-size: 1.2rem; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.78rem;
+            opacity: 0.6;
+            text-align: center;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main { margin-left: 260px; flex: 1; min-height: 100vh; }
+
+        .topbar {
+            background: var(--surface);
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: var(--shadow);
+        }
+
+        .topbar h2 { font-size: 1.3rem; font-weight: 700; }
+
+        .topbar-status {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85rem; color: var(--text-light);
+        }
+
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        .content { padding: 32px; }
+
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* ===== STATS GRID ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            transition: transform var(--transition), box-shadow var(--transition);
+        }
+
+        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .stat-card:nth-child(2) { border-left-color: var(--accent); }
+        .stat-card:nth-child(3) { border-left-color: var(--warning); }
+        .stat-card:nth-child(4) { border-left-color: var(--danger); }
+
+        .stat-card .stat-icon { font-size: 2rem; margin-bottom: 8px; }
+        .stat-card .stat-value { font-size: 2.2rem; font-weight: 800; }
+        .stat-card .stat-label { font-size: 0.85rem; color: var(--text-light); font-weight: 500; margin-top: 4px; }
+
+        /* ===== FORMS ===== */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label { font-size: 0.88rem; font-weight: 600; }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color var(--transition);
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--primary);
+        }
+
+        .form-group textarea { resize: vertical; min-height: 100px; }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px 28px; border: none; border-radius: var(--radius-sm);
+            font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            transition: all var(--transition); font-family: inherit;
+        }
+
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-lg { padding: 16px 40px; font-size: 1.1rem; border-radius: var(--radius); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* ===== SEARCH BAR ===== */
+        .search-bar { display: flex; gap: 12px; margin-bottom: 24px; }
+
+        .search-bar select {
+            flex: 1; padding: 12px 16px;
+            border: 2px solid var(--border); border-radius: var(--radius-sm);
+            font-size: 1rem; font-family: inherit;
+        }
+
+        .search-bar select:focus { outline: none; border-color: var(--primary); }
+
+        /* ===== PATIENT CARD ===== */
+        .patient-card {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff; border-radius: var(--radius); padding: 24px;
+            margin-bottom: 24px;
+            display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center;
+        }
+
+        .patient-avatar {
+            width: 72px; height: 72px;
+            background: rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 2rem;
+        }
+
+        .patient-details h3 { font-size: 1.3rem; margin-bottom: 8px; }
+
+        .patient-meta {
+            display: flex; gap: 20px; flex-wrap: wrap;
+            font-size: 0.88rem; opacity: 0.9;
+        }
+
+        .patient-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* ===== TIMELINE ===== */
+        .timeline { position: relative; padding-left: 40px; }
+
+        .timeline::before {
+            content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+            width: 3px; background: var(--border); border-radius: 2px;
+        }
+
+        .timeline-item { position: relative; margin-bottom: 24px; animation: fadeIn 0.4s ease; }
+
+        .timeline-dot {
+            position: absolute; left: -32px; top: 6px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: var(--primary); border: 3px solid var(--primary-light);
+        }
+
+        .timeline-content {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+        }
+
+        .timeline-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+        }
+
+        .record-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .badge-diagnosis { background: #fed7d7; color: #c53030; }
+        .badge-prescription { background: #c6f6d5; color: #276749; }
+        .badge-lab_result { background: #bee3f8; color: #2a4365; }
+        .badge-vaccination { background: #fefcbf; color: #975a16; }
+        .badge-surgery { background: #e9d8fd; color: #553c9a; }
+
+        .timeline-date { font-size: 0.82rem; color: var(--text-light); }
+
+        .timeline-body p { margin-bottom: 6px; font-size: 0.92rem; line-height: 1.6; }
+
+        .timeline-body .hash {
+            font-family: 'Courier New', monospace; font-size: 0.75rem;
+            color: var(--text-light); background: var(--bg);
+            padding: 4px 8px; border-radius: 4px; word-break: break-all;
+            margin-top: 8px; display: inline-block;
+        }
+
+        /* ===== BLOCKCHAIN EXPLORER ===== */
+        .chain-container { display: flex; flex-direction: column; gap: 0; align-items: center; }
+
+        .block-card {
+            background: var(--surface); border: 2px solid var(--border);
+            border-radius: var(--radius); padding: 20px;
+            width: 100%; max-width: 700px; box-shadow: var(--shadow);
+            cursor: pointer; transition: all var(--transition);
+        }
+
+        .block-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); transform: scale(1.01); }
+        .block-card.genesis { border-color: var(--accent); background: linear-gradient(135deg, #f0fff4, #c6f6d5); }
+
+        .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .block-index { font-size: 1.2rem; font-weight: 800; color: var(--primary); }
+        .block-card.genesis .block-index { color: var(--accent-dark); }
+        .block-time { font-size: 0.82rem; color: var(--text-light); }
+
+        .block-hashes { display: grid; gap: 6px; }
+
+        .block-hash-row { display: flex; gap: 8px; align-items: center; font-size: 0.82rem; }
+        .block-hash-row .label { font-weight: 600; min-width: 90px; }
+        .block-hash-row .value {
+            font-family: 'Courier New', monospace; color: var(--text-light);
+            font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        .block-data-summary {
+            margin-top: 10px; font-size: 0.85rem; color: var(--text-light);
+            padding-top: 10px; border-top: 1px solid var(--border);
+        }
+
+        .chain-arrow { font-size: 1.5rem; color: var(--primary); padding: 4px 0; }
+
+        /* ===== VERIFY ===== */
+        .verify-container { text-align: center; padding: 60px 20px; }
+        .verify-icon { font-size: 5rem; margin-bottom: 24px; }
+
+        .verify-result {
+            margin-top: 32px; padding: 32px; border-radius: var(--radius);
+            font-size: 1.3rem; font-weight: 700; animation: fadeIn 0.5s ease;
+        }
+
+        .verify-result.valid { background: #f0fff4; color: #276749; border: 2px solid #68d391; }
+        .verify-result.invalid { background: #fff5f5; color: #c53030; border: 2px solid #fc8181; }
+        .verify-meta { margin-top: 16px; font-size: 0.9rem; font-weight: 400; color: var(--text-light); }
+
+        /* ===== SPINNER ===== */
+        .spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 3px solid var(--border); border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        .spinner-lg { width: 48px; height: 48px; border-width: 4px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 10000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .toast {
+            padding: 14px 24px; border-radius: var(--radius-sm); color: #fff;
+            font-size: 0.92rem; font-weight: 500; box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s forwards;
+            max-width: 400px;
+        }
+
+        .toast.success { background: var(--accent); }
+        .toast.error { background: var(--danger); }
+        .toast.info { background: var(--primary); }
+
+        @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+        @keyframes slideOut { to{transform:translateX(100%);opacity:0} }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed; top:0;left:0;right:0;bottom:0;
+            background: rgba(0,0,0,0.5); z-index: 5000;
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal {
+            background: var(--surface); border-radius: var(--radius);
+            padding: 32px; max-width: 600px; width: 90%; max-height: 80vh;
+            overflow-y: auto; box-shadow: var(--shadow-lg);
+        }
+
+        .modal h3 {
+            font-size: 1.2rem; margin-bottom: 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .modal-close {
+            background: none; border: none; font-size: 1.5rem;
+            cursor: pointer; color: var(--text-light); transition: color var(--transition);
+        }
+        .modal-close:hover { color: var(--danger); }
+
+        .modal-field { margin-bottom: 12px; }
+        .modal-field .label {
+            font-weight: 700; font-size: 0.82rem; color: var(--text-light);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .modal-field .value {
+            font-family: 'Courier New', monospace; font-size: 0.88rem;
+            word-break: break-all; background: var(--bg);
+            padding: 8px 12px; border-radius: 6px; margin-top: 4px;
+        }
+
+        /* ===== ACTIVITY ===== */
+        .activity-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .activity-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 16px; background: var(--bg);
+            border-radius: var(--radius-sm); transition: background var(--transition);
+        }
+        .activity-item:hover { background: var(--primary-light); }
+
+        .activity-icon {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--primary-light);
+            display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+        }
+
+        .activity-info { flex: 1; }
+        .activity-info strong { font-size: 0.92rem; }
+        .activity-info p { font-size: 0.82rem; color: var(--text-light); margin-top: 2px; }
+
+        .empty-state { text-align: center; padding: 48px 20px; color: var(--text-light); }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main { margin-left: 0; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .form-grid { grid-template-columns: 1fr; }
+            .content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <h1><span>&#x26d3;&#xfe0f;</span> MedChain</h1>
+        <p>Blockchain Medical Records</p>
+    </div>
+    <div class="sidebar-nav">
+        <button class="nav-item active" data-section="dashboard">
+            <span class="icon">&#x1f4ca;</span> Dashboard
+        </button>
+        <button class="nav-item" data-section="register">
+            <span class="icon">&#x1f464;</span> Register Patient
+        </button>
+        <button class="nav-item" data-section="add-record">
+            <span class="icon">&#x1f4cb;</span> Add Record
+        </button>
+        <button class="nav-item" data-section="view-records">
+            <span class="icon">&#x1f50d;</span> View Records
+        </button>
+        <button class="nav-item" data-section="explorer">
+            <span class="icon">&#x1f517;</span> Blockchain Explorer
+        </button>
+        <button class="nav-item" data-section="verify">
+            <span class="icon">&#x2705;</span> Verify Chain
+        </button>
+    </div>
+    <div class="sidebar-footer">
+        MedChain v1.0<br>Powered by Blockchain
+    </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+    <div class="topbar">
+        <h2 id="page-title">Dashboard</h2>
+        <div class="topbar-status">
+            <div class="status-dot"></div>
+            Blockchain Active
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- DASHBOARD -->
+        <div id="section-dashboard" class="section active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">&#x1f9f1;</div>
+                    <div class="stat-value" id="stat-blocks">-</div>
+                    <div class="stat-label">Total Blocks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#x1f465;</div>
+                    <div class="stat-value" id="stat-patients">-</div>
+                    <div class="stat-label">Registered Patients</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#x1f4c4;</div>
+                    <div class="stat-value" id="stat-records">-</div>
+                    <div class="stat-label">Medical Records</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#x1f6e1;&#xfe0f;</div>
+                    <div class="stat-value" id="stat-chain">-</div>
+                    <div class="stat-label">Chain Status</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">Recent Activity</div>
+                <div id="activity-list" class="activity-list">
+                    <div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:12px">Loading...</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REGISTER PATIENT -->
+        <div id="section-register" class="section">
+            <div class="card">
+                <div class="card-header">Register New Patient</div>
+                <form id="register-form" class="form-grid">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="reg-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" id="reg-age" placeholder="25" min="0" max="150" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="reg-gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Blood Group</label>
+                        <select id="reg-blood" required>
+                            <option value="">Select Blood Group</option>
+                            <option>A+</option><option>A-</option>
+                            <option>B+</option><option>B-</option>
+                            <option>AB+</option><option>AB-</option>
+                            <option>O+</option><option>O-</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Number</label>
+                        <input type="tel" id="reg-contact" placeholder="555-0100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Emergency Contact</label>
+                        <input type="tel" id="reg-emergency" placeholder="555-0101" required>
+                    </div>
+                    <div class="form-group full-width" style="margin-top:8px">
+                        <button type="submit" class="btn btn-primary" id="btn-register">Register Patient</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ADD RECORD -->
+        <div id="section-add-record" class="section">
+            <div class="card">
+                <div class="card-header">Add Medical Record to Blockchain</div>
+                <form id="record-form" class="form-grid">
+                    <div class="form-group">
+                        <label>Patient</label>
+                        <select id="rec-patient" required><option value="">Select Patient</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Record Type</label>
+                        <select id="rec-type" required>
+                            <option value="">Select Type</option>
+                            <option value="diagnosis">Diagnosis</option>
+                            <option value="prescription">Prescription</option>
+                            <option value="lab_result">Lab Result</option>
+                            <option value="vaccination">Vaccination</option>
+                            <option value="surgery">Surgery</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Doctor Name</label>
+                        <input type="text" id="rec-doctor" placeholder="Dr. Smith" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="rec-department" placeholder="Cardiology" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="rec-date" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Description</label>
+                        <textarea id="rec-description" placeholder="Detailed medical record description..." required></textarea>
+                    </div>
+                    <div class="form-group full-width" style="margin-top:8px">
+                        <button type="submit" class="btn btn-primary" id="btn-add-record">Add to Blockchain</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- VIEW RECORDS -->
+        <div id="section-view-records" class="section">
+            <div class="search-bar">
+                <select id="search-patient"><option value="">Select a Patient</option></select>
+                <button class="btn btn-primary" id="btn-search">Search</button>
+            </div>
+            <div id="records-result">
+                <div class="empty-state"><div class="icon">&#x1f446;</div><p>Select a patient to view their records</p></div>
+            </div>
+        </div>
+
+        <!-- BLOCKCHAIN EXPLORER -->
+        <div id="section-explorer" class="section">
+            <div id="chain-view" class="chain-container">
+                <div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:12px">Loading blockchain...</p></div>
+            </div>
+        </div>
+
+        <!-- VERIFY CHAIN -->
+        <div id="section-verify" class="section">
+            <div class="verify-container">
+                <div class="verify-icon">&#x1f6e1;&#xfe0f;</div>
+                <h2 style="font-size:1.6rem;margin-bottom:8px">Blockchain Integrity Verification</h2>
+                <p style="color:var(--text-light);margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto">
+                    Verify that the entire blockchain has not been tampered with. Each block's hash and linkage will be validated.
+                </p>
+                <button class="btn btn-primary btn-lg" id="btn-verify">Verify Blockchain Integrity</button>
+                <div id="verify-result"></div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+(function() {
+    const API = '';
+
+    // ===== TOAST =====
+    function showToast(msg, type) {
+        type = type || 'info';
+        var c = document.getElementById('toast-container');
+        var t = document.createElement('div');
+        t.className = 'toast ' + type;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(function() { t.remove(); }, 3000);
+    }
+
+    // ===== NAVIGATION =====
+    var titles = {
+        'dashboard': 'Dashboard',
+        'register': 'Register Patient',
+        'add-record': 'Add Medical Record',
+        'view-records': 'View Records',
+        'explorer': 'Blockchain Explorer',
+        'verify': 'Verify Chain'
+    };
+
+    function showSection(id) {
+        document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+        document.querySelector('[data-section="' + id + '"]').classList.add('active');
+        document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+        document.getElementById('section-' + id).classList.add('active');
+        document.getElementById('page-title').textContent = titles[id] || '';
+
+        if (id === 'dashboard') loadDashboard();
+        if (id === 'explorer') loadBlockchain();
+        if (id === 'add-record' || id === 'view-records') loadPatientDropdowns();
+    }
+
+    document.querySelectorAll('.nav-item').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            showSection(this.getAttribute('data-section'));
+        });
+    });
+
+    // ===== RECORD ICONS =====
+    function getRecordIcon(type) {
+        var icons = { 'diagnosis': '\u{1FA7A}', 'prescription': '\u{1F48A}', 'lab_result': '\u{1F9EA}', 'vaccination': '\u{1F489}', 'surgery': '\u{1F3E5}' };
+        return icons[type] || '\u{1F4C4}';
+    }
+
+    // ===== DASHBOARD =====
+    function loadDashboard() {
+        fetch(API + '/api/stats').then(function(r) { return r.json(); }).then(function(data) {
+            document.getElementById('stat-blocks').textContent = data.total_blocks;
+            document.getElementById('stat-patients').textContent = data.total_patients;
+            document.getElementById('stat-records').textContent = data.total_records;
+            var ce = document.getElementById('stat-chain');
+            ce.textContent = data.chain_valid ? '\u2713 Valid' : '\u2717 Invalid';
+            ce.style.color = data.chain_valid ? 'var(--accent)' : 'var(--danger)';
+        }).catch(function() { showToast('Failed to load stats', 'error'); });
+
+        fetch(API + '/api/blockchain').then(function(r) { return r.json(); }).then(function(data) {
+            var el = document.getElementById('activity-list');
+            var recent = data.chain.slice(-5).reverse();
+            if (recent.length === 0) {
+                el.innerHTML = '<div class="empty-state"><div class="icon">&#x1f4ed;</div><p>No activity</p></div>';
+                return;
+            }
+            el.innerHTML = recent.map(function(b) {
+                var gen = b.index === 0;
+                var icon = gen ? '\u{1F331}' : getRecordIcon(b.data.record_type);
+                var title = gen ? 'Genesis Block Created' : (b.data.record_type || 'Record') + ' - ' + (b.data.patient_name || '');
+                var detail = gen ? 'Blockchain initialized' : 'By ' + (b.data.doctor || 'N/A') + ' | Block #' + b.index;
+                return '<div class="activity-item"><div class="activity-icon">' + icon + '</div><div class="activity-info"><strong>' + title + '</strong><p>' + detail + '</p></div></div>';
+            }).join('');
+        }).catch(function() {});
+    }
+
+    // ===== LOAD PATIENT DROPDOWNS =====
+    function loadPatientDropdowns() {
+        fetch(API + '/api/patients').then(function(r) { return r.json(); }).then(function(data) {
+            var opts = '<option value="">Select Patient</option>' + data.patients.map(function(p) {
+                return '<option value="' + p.id + '">' + p.id + ' - ' + p.name + '</option>';
+            }).join('');
+            var rp = document.getElementById('rec-patient');
+            var sp = document.getElementById('search-patient');
+            if (rp) rp.innerHTML = opts;
+            if (sp) sp.innerHTML = opts;
+        }).catch(function() { showToast('Failed to load patients', 'error'); });
+    }
+
+    // ===== REGISTER PATIENT =====
+    document.getElementById('register-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-register');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Registering...';
+
+        fetch(API + '/api/patients/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: document.getElementById('reg-name').value,
+                age: parseInt(document.getElementById('reg-age').value),
+                gender: document.getElementById('reg-gender').value,
+                blood_group: document.getElementById('reg-blood').value,
+                contact: document.getElementById('reg-contact').value,
+                emergency_contact: document.getElementById('reg-emergency').value
+            })
+        }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+            if (res.ok) {
+                showToast('Patient registered! ID: ' + res.data.patient_id, 'success');
+                document.getElementById('register-form').reset();
+            } else {
+                showToast(res.data.error || 'Registration failed', 'error');
+            }
+        }).catch(function() { showToast('Network error', 'error'); })
+        .finally(function() { btn.disabled = false; btn.textContent = 'Register Patient'; });
+    });
+
+    // ===== ADD RECORD =====
+    document.getElementById('record-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-add-record');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Mining block...';
+
+        fetch(API + '/api/records/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patient_id: document.getElementById('rec-patient').value,
+                record_type: document.getElementById('rec-type').value,
+                doctor: document.getElementById('rec-doctor').value,
+                department: document.getElementById('rec-department').value,
+                date: document.getElementById('rec-date').value,
+                description: document.getElementById('rec-description').value
+            })
+        }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+            if (res.ok) {
+                showToast('Record added! Block #' + res.data.block_index + ' | Hash: ' + res.data.block_hash.substring(0, 16) + '...', 'success');
+                document.getElementById('record-form').reset();
+            } else {
+                showToast(res.data.error || 'Failed', 'error');
+            }
+        }).catch(function() { showToast('Network error', 'error'); })
+        .finally(function() { btn.disabled = false; btn.textContent = 'Add to Blockchain'; });
+    });
+
+    // ===== SEARCH RECORDS =====
+    function searchRecords() {
+        var pid = document.getElementById('search-patient').value;
+        var el = document.getElementById('records-result');
+        if (!pid) {
+            el.innerHTML = '<div class="empty-state"><div class="icon">&#x1f446;</div><p>Select a patient</p></div>';
+            return;
+        }
+        el.innerHTML = '<div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:12px">Loading...</p></div>';
+
+        fetch(API + '/api/records/' + pid).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(res) {
+            if (!res.ok) {
+                el.innerHTML = '<div class="empty-state"><div class="icon">&#x274c;</div><p>' + res.data.error + '</p></div>';
+                return;
+            }
+            var p = res.data.patient;
+            var html = '<div class="patient-card"><div class="patient-avatar">' + (p.gender === 'Female' ? '\u{1F469}' : '\u{1F468}') + '</div>';
+            html += '<div class="patient-details"><h3>' + p.name + '</h3>';
+            html += '<div class="patient-meta"><span>ID: ' + p.id + '</span><span>Age: ' + p.age + '</span><span>Blood: ' + p.blood_group + '</span><span>Phone: ' + p.contact + '</span></div></div></div>';
+
+            if (res.data.records.length === 0) {
+                html += '<div class="empty-state"><div class="icon">&#x1f4ed;</div><p>No records found</p></div>';
+            } else {
+                html += '<div class="timeline">';
+                res.data.records.forEach(function(r) {
+                    html += '<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content">';
+                    html += '<div class="timeline-header"><span class="record-badge badge-' + r.record_type + '">' + getRecordIcon(r.record_type) + ' ' + r.record_type.replace('_', ' ') + '</span>';
+                    html += '<span class="timeline-date">' + r.date + '</span></div>';
+                    html += '<div class="timeline-body"><p><strong>Doctor:</strong> ' + r.doctor + ' | <strong>Dept:</strong> ' + r.department + '</p>';
+                    html += '<p>' + r.description + '</p>';
+                    html += '<span class="hash">Block #' + r.block_index + ' | ' + r.block_hash + '</span></div></div></div>';
+                });
+                html += '</div>';
+            }
+            el.innerHTML = html;
+        }).catch(function() { el.innerHTML = '<div class="empty-state"><div class="icon">&#x26a0;&#xfe0f;</div><p>Failed to load</p></div>'; });
+    }
+
+    document.getElementById('btn-search').addEventListener('click', searchRecords);
+    document.getElementById('search-patient').addEventListener('change', searchRecords);
+
+    // ===== BLOCKCHAIN EXPLORER =====
+    function loadBlockchain() {
+        var container = document.getElementById('chain-view');
+        container.innerHTML = '<div class="empty-state"><div class="spinner spinner-lg"></div><p style="margin-top:12px">Loading blockchain...</p></div>';
+
+        fetch(API + '/api/blockchain').then(function(r) { return r.json(); }).then(function(data) {
+            var html = '';
+            data.chain.forEach(function(block, idx) {
+                var gen = block.index === 0;
+                var time = new Date(block.timestamp * 1000).toLocaleString();
+                var summary = gen ? 'Genesis Block' : block.data.record_type + ' - ' + block.data.patient_name;
+
+                if (idx > 0) html += '<div class="chain-arrow">&#x2b07;&#xfe0f;</div>';
+
+                html += '<div class="block-card ' + (gen ? 'genesis' : '') + '" data-block=\'' + JSON.stringify(block).replace(/'/g, '&#39;') + '\'>';
+                html += '<div class="block-header"><span class="block-index">' + (gen ? '\u{1F331}' : '\u{1F9F1}') + ' Block #' + block.index + '</span>';
+                html += '<span class="block-time">' + time + '</span></div>';
+                html += '<div class="block-hashes"><div class="block-hash-row"><span class="label">Hash:</span><span class="value">' + block.hash + '</span></div>';
+                html += '<div class="block-hash-row"><span class="label">Prev Hash:</span><span class="value">' + block.previous_hash + '</span></div></div>';
+                html += '<div class="block-data-summary">' + summary + ' | Nonce: ' + block.nonce + '</div></div>';
+            });
+            container.innerHTML = html;
+
+            // Add click handlers
+            container.querySelectorAll('.block-card').forEach(function(card) {
+                card.addEventListener('click', function() {
+                    showBlockModal(JSON.parse(this.getAttribute('data-block')));
+                });
+            });
+        }).catch(function() {
+            container.innerHTML = '<div class="empty-state"><div class="icon">&#x26a0;&#xfe0f;</div><p>Failed to load blockchain</p></div>';
+        });
+    }
+
+    function showBlockModal(block) {
+        var time = new Date(block.timestamp * 1000).toLocaleString();
+        var dataStr = typeof block.data === 'string' ? block.data : JSON.stringify(block.data, null, 2);
+
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+        overlay.innerHTML = '<div class="modal"><h3>Block #' + block.index + ' Details<button class="modal-close">&times;</button></h3>'
+            + '<div class="modal-field"><div class="label">Index</div><div class="value">' + block.index + '</div></div>'
+            + '<div class="modal-field"><div class="label">Timestamp</div><div class="value">' + time + '</div></div>'
+            + '<div class="modal-field"><div class="label">Hash</div><div class="value">' + block.hash + '</div></div>'
+            + '<div class="modal-field"><div class="label">Previous Hash</div><div class="value">' + block.previous_hash + '</div></div>'
+            + '<div class="modal-field"><div class="label">Nonce</div><div class="value">' + block.nonce + '</div></div>'
+            + '<div class="modal-field"><div class="label">Data</div><div class="value"><pre style="white-space:pre-wrap;margin:0;font-size:0.85rem">' + dataStr + '</pre></div></div></div>';
+
+        overlay.querySelector('.modal-close').addEventListener('click', function() { overlay.remove(); });
+        document.body.appendChild(overlay);
+    }
+
+    // ===== VERIFY CHAIN =====
+    document.getElementById('btn-verify').addEventListener('click', function() {
+        var btn = this;
+        var el = document.getElementById('verify-result');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Verifying...';
+        el.innerHTML = '<div style="margin-top:24px"><div class="spinner spinner-lg" style="display:block;margin:0 auto"></div><p style="margin-top:12px;color:var(--text-light)">Validating all blocks and hashes...</p></div>';
+
+        setTimeout(function() {
+            Promise.all([
+                fetch(API + '/api/blockchain/validate').then(function(r) { return r.json(); }),
+                fetch(API + '/api/stats').then(function(r) { return r.json(); })
+            ]).then(function(results) {
+                var v = results[0], s = results[1];
+                var now = new Date().toLocaleString();
+                el.innerHTML = '<div class="verify-result ' + (v.is_valid ? 'valid' : 'invalid') + '">'
+                    + '<div style="font-size:3rem;margin-bottom:12px">' + (v.is_valid ? '\u2705' : '\u274c') + '</div>'
+                    + (v.is_valid ? 'Blockchain is VALID' : 'Blockchain is INVALID - Tampering Detected!')
+                    + '<div class="verify-meta">Chain Length: ' + s.total_blocks + ' blocks | Verified at: ' + now + '</div></div>';
+            }).catch(function() {
+                el.innerHTML = '<div class="verify-result invalid">Verification failed - Network error</div>';
+            }).finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Verify Blockchain Integrity';
+            });
+        }, 1500);
+    });
+
+    // ===== INIT =====
+    loadDashboard();
+    var dateInput = document.getElementById('rec-date');
+    if (dateInput) dateInput.valueAsDate = new Date();
+})();
+</script>
+
+</body>
+</html>
